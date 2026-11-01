@@ -1,0 +1,13 @@
+name = "test"
+defaultTargets = ["CssTests"]
+testDriver = "CssTests"
+
+[leanOptions]
+warningAsError = true
+
+[[require]]
+name = "css"
+path = ".."
+
+[[lean_lib]]
+name = "CssTests"
