@@ -120,22 +120,22 @@ end
 /-- The rule, compact, or indented by two spaces a level when `pretty`. -/
 def Rule.render (r : Rule) (pretty : Bool := false) : String := r.renderAt pretty 0
 
-def declsHaveUnsafe (ds : List Declaration) : Bool := ds.any (·.hasUnsafe)
+def declsHaveVerbatim (ds : List Declaration) : Bool := ds.any (·.hasVerbatim)
 
 mutual
 
-def Rule.hasUnsafe : Rule → Bool
-  | .style _ ds | .fontFace ds => declsHaveUnsafe ds
-  | .media qs rs => qs.any (·.hasUnsafe) || Rule.listHasUnsafe rs
-  | .supports c rs => c.hasUnsafe || Rule.listHasUnsafe rs
-  | .layer _ rs => Rule.listHasUnsafe rs
+def Rule.hasVerbatim : Rule → Bool
+  | .style _ ds | .fontFace ds => declsHaveVerbatim ds
+  | .media qs rs => qs.any (·.hasVerbatim) || Rule.hasVerbatimList rs
+  | .supports c rs => c.hasVerbatim || Rule.hasVerbatimList rs
+  | .layer _ rs => Rule.hasVerbatimList rs
   | .layerOrder _ => false
-  | .keyframes _ fs => fs.any fun f => declsHaveUnsafe f.decls
+  | .keyframes _ fs => fs.any fun f => declsHaveVerbatim f.decls
   | .unsafeRaw _ => true
 
-def Rule.listHasUnsafe : List Rule → Bool
+def Rule.hasVerbatimList : List Rule → Bool
   | [] => false
-  | r :: rs => r.hasUnsafe || Rule.listHasUnsafe rs
+  | r :: rs => r.hasVerbatim || Rule.hasVerbatimList rs
 
 end
 
@@ -163,8 +163,8 @@ first, where CSS requires them. -/
 def render (s : Stylesheet) (pretty : Bool := false) : String :=
   String.join (s.imports.map (Import.render pretty)) ++ Rule.renderListAt pretty 0 s.rules
 
-def hasUnsafe (s : Stylesheet) : Bool :=
-  s.imports.any (·.media.any (·.hasUnsafe)) || Rule.listHasUnsafe s.rules
+def hasVerbatim (s : Stylesheet) : Bool :=
+  s.imports.any (·.media.any (·.hasVerbatim)) || Rule.hasVerbatimList s.rules
 
 end Stylesheet
 
@@ -255,7 +255,7 @@ private theorem indent_flat (d : Nat) : AllChars isFlat (indent d) :=
 private theorem ident_flat (s : String) : AllChars isFlat (escapeIdent s) :=
   ((escapeIdent_safe s).mono isInert_of_name).mono isFlat_of_inert
 
-theorem Declaration.render_flat (d : Declaration) (pretty : Bool) (h : d.hasUnsafe = false) :
+theorem Declaration.render_flat (d : Declaration) (pretty : Bool) (h : d.hasVerbatim = false) :
     AllChars isFlat (d.render pretty) := by
   simp only [Declaration.render, allChars_append]
   exact ⟨⟨⟨ident_flat _, by split <;> decide⟩, (d.value.render_inert h).mono isFlat_of_inert⟩,
@@ -263,7 +263,7 @@ theorem Declaration.render_flat (d : Declaration) (pretty : Bool) (h : d.hasUnsa
 
 /-- Given no `Component.unsafeRaw`, a declaration can't end itself or the block it is in, so in
 an inline `style` attribute every `;` is one `inlineStyle` put there. -/
-theorem Declaration.render_inline (d : Declaration) (h : d.hasUnsafe = false) :
+theorem Declaration.render_inline (d : Declaration) (h : d.hasVerbatim = false) :
     AllChars (fun c => c != '{' && c != '}' && c != ';' && c != '<') d.render := by
   simp only [Declaration.render, allChars_append]
   have v := d.value.render_inert h
@@ -275,9 +275,9 @@ theorem Declaration.render_inline (d : Declaration) (h : d.hasUnsafe = false) :
     exact ⟨⟨⟨hc.1.1.1.1, hc.1.1.1.2⟩, hc.1.1.2⟩, hc.1.2⟩
 
 private theorem declsBody_wf (pretty : Bool) (depth : Nat) (ds : List Declaration)
-    (h : declsHaveUnsafe ds = false) : WellFormed (declsBody pretty depth ds) := by
-  have hd : ∀ d ∈ ds, d.hasUnsafe = false := by
-    simpa [declsHaveUnsafe] using h
+    (h : declsHaveVerbatim ds = false) : WellFormed (declsBody pretty depth ds) := by
+  have hd : ∀ d ∈ ds, d.hasVerbatim = false := by
+    simpa [declsHaveVerbatim] using h
   refine WellFormed.of_flat ?_
   unfold declsBody
   split
@@ -309,7 +309,7 @@ private theorem selectors_flat (pretty : Bool) (sels : List Complex) :
   exact c.render_inert.mono isFlat_of_inert
 
 private theorem queries_flat (pretty : Bool) (qs : List MediaQuery)
-    (h : ∀ q ∈ qs, q.hasUnsafe = false) :
+    (h : ∀ q ∈ qs, q.hasVerbatim = false) :
     AllChars isFlat (joinWith (listSep pretty) (qs.map (·.render))) := by
   refine joinWith_allChars (by unfold listSep; split <;> decide) _ fun s hs => ?_
   simp only [List.mem_map] at hs
@@ -317,7 +317,7 @@ private theorem queries_flat (pretty : Bool) (qs : List MediaQuery)
   exact (q.render_inert (h q hm)).mono isFlat_of_inert
 
 private theorem keyframe_wf (pretty : Bool) (depth : Nat) (k : Keyframe)
-    (h : declsHaveUnsafe k.decls = false) : WellFormed (k.render pretty depth) := by
+    (h : declsHaveVerbatim k.decls = false) : WellFormed (k.render pretty depth) := by
   unfold Keyframe.render
   split
   · exact WellFormed.of_flat (by decide)
@@ -334,14 +334,14 @@ private theorem keyframe_wf (pretty : Bool) (depth : Nat) (k : Keyframe)
 mutual
 
 theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
-    (r : Rule) → r.hasUnsafe = false → WellFormed (r.renderAt pretty depth)
+    (r : Rule) → r.hasVerbatim = false → WellFormed (r.renderAt pretty depth)
   | .style sels ds, h => by
     simp only [Rule.renderAt]
     split
     · exact WellFormed.of_flat (by decide)
     · exact block_wf (selectors_flat _ _) (declsBody_wf _ _ _ h)
   | .media qs rs, h => by
-    simp only [Rule.hasUnsafe, Bool.or_eq_false_iff, List.any_eq_false, Bool.not_eq_true] at h
+    simp only [Rule.hasVerbatim, Bool.or_eq_false_iff, List.any_eq_false, Bool.not_eq_true] at h
     simp only [Rule.renderAt]
     refine block_wf ?_ (Rule.renderListAt_wf pretty (depth + 1) rs h.2)
     simp only [allChars_append]
@@ -350,7 +350,7 @@ theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
     · decide
     · exact queries_flat _ _ h.1
   | .supports c rs, h => by
-    simp only [Rule.hasUnsafe, Bool.or_eq_false_iff] at h
+    simp only [Rule.hasVerbatim, Bool.or_eq_false_iff] at h
     simp only [Rule.renderAt]
     refine block_wf ?_ (Rule.renderListAt_wf pretty (depth + 1) rs h.2)
     simp only [allChars_append]
@@ -380,7 +380,7 @@ theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
       · simp only [allChars_append]
         exact ⟨⟨by decide, hn _ (by decide)⟩, by decide⟩
   | .keyframes n fs, h => by
-    simp only [Rule.hasUnsafe, List.any_eq_false, Bool.not_eq_true] at h
+    simp only [Rule.hasVerbatim, List.any_eq_false, Bool.not_eq_true] at h
     simp only [Rule.renderAt]
     refine block_wf ?_ ?_
     · simp only [allChars_append]
@@ -401,10 +401,10 @@ theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
     exact block_wf (by decide) (declsBody_wf _ _ _ h)
 
 theorem Rule.renderListAt_wf (pretty : Bool) (depth : Nat) :
-    (rs : List Rule) → Rule.listHasUnsafe rs = false → WellFormed (Rule.renderListAt pretty depth rs)
+    (rs : List Rule) → Rule.hasVerbatimList rs = false → WellFormed (Rule.renderListAt pretty depth rs)
   | [], _ => WellFormed.of_flat fun _ h => by simp [Rule.renderListAt] at h
   | r :: rs, h => by
-    simp only [Rule.listHasUnsafe, Bool.or_eq_false_iff] at h
+    simp only [Rule.hasVerbatimList, Bool.or_eq_false_iff] at h
     simp only [Rule.renderListAt]
     exact (Rule.renderAt_wf pretty depth r h.1).append (Rule.renderListAt_wf pretty depth rs h.2)
 
@@ -413,9 +413,9 @@ end
 /-- Given no `unsafeRaw`, a rendered stylesheet, compact or pretty, is `WellFormed`: its blocks
 nest, whatever strings it was built from, and it can't close the `<style>` element it is
 embedded in. -/
-theorem Stylesheet.render_wellFormed (s : Stylesheet) (pretty : Bool) (h : s.hasUnsafe = false) :
+theorem Stylesheet.render_wellFormed (s : Stylesheet) (pretty : Bool) (h : s.hasVerbatim = false) :
     WellFormed (s.render pretty) := by
-  simp only [Stylesheet.hasUnsafe, Bool.or_eq_false_iff, List.any_eq_false, Bool.not_eq_true]
+  simp only [Stylesheet.hasVerbatim, Bool.or_eq_false_iff, List.any_eq_false, Bool.not_eq_true]
     at h
   simp only [Stylesheet.render]
   refine WellFormed.append (WellFormed.of_flat (allChars_join fun str hs => ?_))

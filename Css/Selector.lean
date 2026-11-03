@@ -184,8 +184,8 @@ def tag (name : String) : Compound := .mk (some name) [] []
 /-- `*` -/
 def universal : Compound := .mk none [] []
 
-/-- A class selector, as `cls "btn"` for `.btn`. -/
-def cls (name : String) : Subclass := { simples := [.class_ name] }
+/-- A class selector, as `class_ "btn"` for `.btn`. -/
+def class_ (name : String) : Subclass := { simples := [.class_ name] }
 
 /-- An ID selector, as `id_ "main"` for `#main`. -/
 def id_ (name : String) : Subclass := { simples := [.id name] }

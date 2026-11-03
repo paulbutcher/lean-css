@@ -69,10 +69,10 @@ def render : MediaCondition → String
   | .or a b => parenthesize a.isLeaf a.render ++ " or " ++ parenthesize b.isLeaf b.render
   | .not a => "not " ++ parenthesize a.isLeaf a.render
 
-def hasUnsafe : MediaCondition → Bool
-  | .feature _ v => v.hasUnsafe
-  | .and a b | .or a b => a.hasUnsafe || b.hasUnsafe
-  | .not a => a.hasUnsafe
+def hasVerbatim : MediaCondition → Bool
+  | .feature _ v => v.hasVerbatim
+  | .and a b | .or a b => a.hasVerbatim || b.hasVerbatim
+  | .not a => a.hasVerbatim
   | _ => false
 
 end MediaCondition
@@ -98,8 +98,8 @@ def render : MediaQuery → String
     (if n then "not " else "") ++ Keyword.keyword t ++ " and " ++
       parenthesize (!c matches .or ..) c.render
 
-def hasUnsafe : MediaQuery → Bool
-  | .condition c | .typeAnd _ c _ => c.hasUnsafe
+def hasVerbatim : MediaQuery → Bool
+  | .condition c | .typeAnd _ c _ => c.hasVerbatim
   | .type .. => false
 
 end MediaQuery
@@ -127,11 +127,11 @@ def render : SupportsCondition → String
   | .or a b => parenthesize a.isLeaf a.render ++ " or " ++ parenthesize b.isLeaf b.render
   | .not a => "not " ++ parenthesize a.isLeaf a.render
 
-def hasUnsafe : SupportsCondition → Bool
-  | .decl d => d.hasUnsafe
+def hasVerbatim : SupportsCondition → Bool
+  | .decl d => d.hasVerbatim
   | .selector _ => false
-  | .and a b | .or a b => a.hasUnsafe || b.hasUnsafe
-  | .not a => a.hasUnsafe
+  | .and a b | .or a b => a.hasVerbatim || b.hasVerbatim
+  | .not a => a.hasVerbatim
 
 end SupportsCondition
 
@@ -147,19 +147,19 @@ theorem parenthesize_inert {b : Bool} {s : String} (h : AllChars isInert s) :
   · exact h
   · simp only [allChars_append]; exact ⟨⟨by decide, h⟩, by decide⟩
 
-private theorem feat_inert (n : String) (v : Value) (h : v.hasUnsafe = false) :
+private theorem feat_inert (n : String) (v : Value) (h : v.hasVerbatim = false) :
     AllChars isInert (MediaCondition.renderFeature n v) := by
   simp only [MediaCondition.renderFeature, allChars_append]
   exact ⟨⟨⟨⟨by decide, ident_inert n⟩, by decide⟩, v.render_inert h⟩, by decide⟩
 
 theorem MediaCondition.render_inert :
-    (c : MediaCondition) → c.hasUnsafe = false → AllChars isInert c.render
+    (c : MediaCondition) → c.hasVerbatim = false → AllChars isInert c.render
   | .minWidth _, _ | .maxWidth _, _ | .minHeight _, _ | .maxHeight _, _
   | .prefersColorScheme _, _ | .prefersReducedMotion, _ | .orientation _, _ | .hover _, _
   | .pointer _, _ => feat_inert _ _ rfl
   | .feature _ v, h => feat_inert _ v h
   | .and a b, h | .or a b, h => by
-    simp only [hasUnsafe, Bool.or_eq_false_iff] at h
+    simp only [hasVerbatim, Bool.or_eq_false_iff] at h
     simp only [render, allChars_append]
     exact ⟨⟨parenthesize_inert (a.render_inert h.1), by decide⟩,
       parenthesize_inert (b.render_inert h.2)⟩
@@ -167,7 +167,7 @@ theorem MediaCondition.render_inert :
     simp only [render, allChars_append]
     exact ⟨by decide, parenthesize_inert (a.render_inert h)⟩
 
-theorem MediaQuery.render_inert (q : MediaQuery) (h : q.hasUnsafe = false) :
+theorem MediaQuery.render_inert (q : MediaQuery) (h : q.hasVerbatim = false) :
     AllChars isInert q.render := by
   cases q with
   | condition c => exact c.render_inert h
@@ -180,7 +180,7 @@ theorem MediaQuery.render_inert (q : MediaQuery) (h : q.hasUnsafe = false) :
       parenthesize_inert (c.render_inert h)⟩
 
 theorem SupportsCondition.render_inert :
-    (c : SupportsCondition) → c.hasUnsafe = false → AllChars isInert c.render
+    (c : SupportsCondition) → c.hasVerbatim = false → AllChars isInert c.render
   | .decl d, h => by
     simp only [render, allChars_append]
     exact ⟨⟨⟨⟨by decide, ident_inert _⟩, by decide⟩, d.value.render_inert h⟩, by decide⟩
@@ -188,7 +188,7 @@ theorem SupportsCondition.render_inert :
     simp only [render, allChars_append]
     exact ⟨⟨by decide, s.render_inert⟩, by decide⟩
   | .and a b, h | .or a b, h => by
-    simp only [hasUnsafe, Bool.or_eq_false_iff] at h
+    simp only [hasVerbatim, Bool.or_eq_false_iff] at h
     simp only [render, allChars_append]
     exact ⟨⟨parenthesize_inert (a.render_inert h.1), by decide⟩,
       parenthesize_inert (b.render_inert h.2)⟩

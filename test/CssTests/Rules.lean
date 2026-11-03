@@ -14,8 +14,8 @@ open Css
 def sheet : Stylesheet where
   imports := [{ url := "print.css", media := [.type .print] }]
   rules := [
-    rule [tag "body", cls "page"] [margin 0, color .black],
-    media [.minWidth (px 600)] [rule [cls "col"] [width (pct 50)]],
+    rule [tag "body", class_ "page"] [margin 0, color .black],
+    media [.minWidth (px 600)] [rule [class_ "col"] [width (pct 50)]],
     keyframes "fade" [frame [.from] [opacity 0], frame [.at (pct 50), .to] [opacity 1]]
   ]
 
@@ -77,7 +77,7 @@ body, .page {
 example : WellFormed (sheet.render true) := sheet.render_wellFormed true (by decide)
 
 -- `unsafeRaw` is the one way to produce something else.
-#guard (Stylesheet.mk [] [.unsafeRaw "}</style>"]).hasUnsafe
-#guard (Stylesheet.mk [] [rule [tag "p"] [declare "x" [Component.unsafeRaw "}"]]]).hasUnsafe
+#guard (Stylesheet.mk [] [.unsafeRaw "}</style>"]).hasVerbatim
+#guard (Stylesheet.mk [] [rule [tag "p"] [declare "x" [Component.unsafeRaw "}"]]]).hasVerbatim
 
 end CssTests

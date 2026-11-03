@@ -661,20 +661,20 @@ def Track.toValue : Track → Value
   | .maxContent => [.ident "max-content"]
   | .minmax a b => [.function "minmax" (a.toValue ++ .comma :: b.toValue)]
   | .fitContent l => [.function "fit-content" (ToValue.toValue l)]
-  | .repeat n ts => [.function "repeat" (.number n :: .comma :: Track.listToValue ts)]
-  | .autoFill ts => [.function "repeat" (.ident "auto-fill" :: .comma :: Track.listToValue ts)]
-  | .autoFit ts => [.function "repeat" (.ident "auto-fit" :: .comma :: Track.listToValue ts)]
+  | .repeat n ts => [.function "repeat" (.number n :: .comma :: Track.toValueList ts)]
+  | .autoFill ts => [.function "repeat" (.ident "auto-fill" :: .comma :: Track.toValueList ts)]
+  | .autoFit ts => [.function "repeat" (.ident "auto-fit" :: .comma :: Track.toValueList ts)]
 
-def Track.listToValue : List Track → Value
+def Track.toValueList : List Track → Value
   | [] => []
-  | t :: ts => t.toValue ++ Track.listToValue ts
+  | t :: ts => t.toValue ++ Track.toValueList ts
 
 end
 
 instance : ToValue Track := ⟨Track.toValue⟩
 
 /-- A track list, where none at all is `none`. -/
-instance : ToValue (List Track) := ⟨fun | [] => [.ident "none"] | ts => Track.listToValue ts⟩
+instance : ToValue (List Track) := ⟨fun | [] => [.ident "none"] | ts => Track.toValueList ts⟩
 
 inductive GridLine where
   | auto

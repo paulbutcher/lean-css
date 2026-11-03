@@ -20,7 +20,7 @@ namespace Declaration
 
 def important (d : Declaration) : Declaration := { d with isImportant := true }
 
-def hasUnsafe (d : Declaration) : Bool := d.value.hasUnsafe
+def hasVerbatim (d : Declaration) : Bool := d.value.hasVerbatim
 
 def render (d : Declaration) (pretty : Bool := false) : String :=
   escapeIdent d.property ++ (if pretty then ": " else ":") ++ d.value.render ++

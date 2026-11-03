@@ -23,15 +23,15 @@ open Css
 
 def site : Stylesheet := [
   rule [tag "body"] [margin 0, fontFamily ⟨"Inter", [.sansSerif]⟩, lineHeight 1.5],
-  rule [cls "card", tag "article" ++ cls "card"] [
+  rule [class_ "card", tag "article" ++ class_ "card"] [
     padding (rem 1),
     borderRadius (px 8),
     border { width := px 1, style := .solid, color := .hex 0xdddddd },
   ],
   rule [tag "a" ++ pseudo .hover] [color .rebeccapurple, textDecoration .underline],
-  rule [child (cls "nav") (tag "li" ++ pseudo (.nthChild 2 1))] [backgroundColor .whitesmoke],
+  rule [child (class_ "nav") (tag "li" ++ pseudo (.nthChild 2 1))] [backgroundColor .whitesmoke],
   media [.minWidth (px 768)] [
-    rule [cls "grid"] [display .grid, gridTemplateColumns [.repeat 3 [fr 1]], gap (rem 1)],
+    rule [class_ "grid"] [display .grid, gridTemplateColumns [.repeat 3 [fr 1]], gap (rem 1)],
   ],
   keyframes "spin" [frame [.to] [transform [.rotate (turn 1)]]],
 ]
@@ -50,7 +50,7 @@ def site : Stylesheet := [
 
 ## Selectors
 
-- `tag "a"` is a type selector, `universal` is `*`, and `cls`, `id_`, `attr`, `pseudo`, and `pseudoElement` are the rest of a compound selector, joined with `++`: `tag "a" ++ cls "btn" ++ pseudo .hover`. Only a type selector can start one, and only once. Pseudo-elements render last, after the pseudo-classes, wherever they were appended.
+- `tag "a"` is a type selector, `universal` is `*`, and `class_`, `id_`, `attr`, `pseudo`, and `pseudoElement` are the rest of a compound selector, joined with `++`: `tag "a" ++ class_ "btn" ++ pseudo .hover`. Only a type selector can start one, and only once. Pseudo-elements render last, after the pseudo-classes, wherever they were appended.
 - `descendant`, `child`, `nextSibling`, and `subsequentSibling` combine selectors. `pseudo (.not [...])`, `.is`, `.where`, and `.has` take selector lists, `.has` relative ones such as `.child (tag "img")`.
 - A rule takes a list of selectors, and where a list of selectors or keyframe selectors is empty, the output says what the empty list means: a rule or keyframe of no selectors is left out, `:not()` of none matches everything, so is left out too, and `:has()` of none matches nothing, so is written `:is()`.
 

@@ -68,14 +68,14 @@ end
 
 mutual
 
-def hasUnsafe : Component → Bool
-  | .function _ args | .parens args => hasUnsafeList args
+def hasVerbatim : Component → Bool
+  | .function _ args | .parens args => hasVerbatimList args
   | .unsafeRaw _ => true
   | _ => false
 
-def hasUnsafeList : List Component → Bool
+def hasVerbatimList : List Component → Bool
   | [] => false
-  | c :: cs => hasUnsafe c || hasUnsafeList cs
+  | c :: cs => hasVerbatim c || hasVerbatimList cs
 
 end
 
@@ -83,7 +83,7 @@ end Component
 
 def Value.render (v : Value) : String := Component.renderList v
 
-def Value.hasUnsafe (v : Value) : Bool := Component.hasUnsafeList v
+def Value.hasVerbatim (v : Value) : Bool := Component.hasVerbatimList v
 
 /-- Characters which can't appear in a value, a selector, or a media query, because they would
 end a declaration or a block, mark a declaration important, or close a `<style>` element. -/
@@ -109,7 +109,7 @@ namespace Component
 
 mutual
 
-theorem render_inert : (c : Component) → c.hasUnsafe = false → AllChars isInert c.render
+theorem render_inert : (c : Component) → c.hasVerbatim = false → AllChars isInert c.render
   | .ident n, _ => (escapeIdent_safe n).mono isInert_of_name
   | .number n, _ => (Num.render_chars n).mono isInert_of_num
   | .dimension n u, _ => by
@@ -134,18 +134,18 @@ theorem render_inert : (c : Component) → c.hasUnsafe = false → AllChars isIn
   | .comma, _ | .slash, _ | .plus, _ | .minus, _ | .times, _ => by decide
 
 theorem renderList_inert :
-    (l : List Component) → hasUnsafeList l = false → AllChars isInert (renderList l)
+    (l : List Component) → hasVerbatimList l = false → AllChars isInert (renderList l)
   | [], _ => by decide
   | c :: cs, h => by
-    simp only [hasUnsafeList, Bool.or_eq_false_iff] at h
+    simp only [hasVerbatimList, Bool.or_eq_false_iff] at h
     simp only [renderList, allChars_append]
     exact ⟨render_inert c h.1, renderTail_inert cs h.2⟩
 
 theorem renderTail_inert :
-    (l : List Component) → hasUnsafeList l = false → AllChars isInert (renderTail l)
+    (l : List Component) → hasVerbatimList l = false → AllChars isInert (renderTail l)
   | [], _ => by decide
   | c :: cs, h => by
-    simp only [hasUnsafeList, Bool.or_eq_false_iff] at h
+    simp only [hasVerbatimList, Bool.or_eq_false_iff] at h
     simp only [renderTail, allChars_append]
     exact ⟨⟨by split <;> decide, render_inert c h.1⟩, renderTail_inert cs h.2⟩
 
@@ -156,7 +156,7 @@ end Component
 /-- Given no `Component.unsafeRaw`, a rendered value holds none of `{`, `}`, `;`, `<`, or `!`:
 whatever strings it was built from, it can't end its declaration or the rule it is in, mark
 the declaration important, or close a `<style>` element. -/
-theorem Value.render_inert (v : Value) (h : v.hasUnsafe = false) : AllChars isInert v.render :=
+theorem Value.render_inert (v : Value) (h : v.hasVerbatim = false) : AllChars isInert v.render :=
   Component.renderList_inert v h
 
 /-- How a typed value is written as a property value. -/
