@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-11-03
 
 * Breaking: `cls` is renamed `class_`, matching lean-html
 * Breaking: `hasUnsafe` is renamed `hasVerbatim` throughout, matching lean-html
