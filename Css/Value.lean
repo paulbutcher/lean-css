@@ -183,8 +183,4 @@ def commaSeparated {α : Type} [ToValue α] (xs : List α) : Value :=
   | [] => []
   | x :: rest => toValue x ++ rest.flatMap fun x => .comma :: toValue x
 
-/-- `var(--name)`, or `var(--name, fallback)`. -/
-def var (name : String) (fallback : Value := []) : Component :=
-  .function "var" (.ident ("--" ++ name) :: if fallback.isEmpty then [] else .comma :: fallback)
-
 end Css

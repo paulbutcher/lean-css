@@ -609,9 +609,16 @@ inductive Iterations where
 instance : OfNat Iterations n := ⟨.count (OfNat.ofNat n)⟩
 instance : ToValue Iterations := ⟨fun | .infinite => [.ident "infinite"] | .count n => [.number n]⟩
 
-/-- One animation of the `animation` shorthand, naming an `@keyframes` rule. -/
-structure Animation where
+/-- An `@keyframes` rule's name, as `keyframes` returns it, or `.named` for one defined
+elsewhere. -/
+structure Keyframes where
+  named ::
   name : String
+  deriving DecidableEq, Repr
+
+/-- One animation of the `animation` shorthand. -/
+structure Animation where
+  name : Keyframes
   duration : Time
   easing : Easing := .ease
   delay : Time := 0
@@ -626,7 +633,7 @@ instance : ToValue Animation where
       (if a.delay = 0 then [] else toValue a.delay) ++
       (if a.iterations = 1 then [] else toValue a.iterations) ++
       (if a.direction = .normal then [] else toValue a.direction) ++
-      (if a.fillMode = .none then [] else toValue a.fillMode) ++ [.ident a.name]
+      (if a.fillMode = .none then [] else toValue a.fillMode) ++ [.ident a.name.name]
 
 /-- Animations, where none at all is `none`. -/
 instance : ToValue (List Animation) := ⟨fun | [] => [.ident "none"] | as => commaSeparated as⟩

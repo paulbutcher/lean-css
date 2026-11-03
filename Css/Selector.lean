@@ -184,14 +184,29 @@ def tag (name : String) : Compound := .mk (some name) [] []
 /-- `*` -/
 def universal : Compound := .mk none [] []
 
+/-- A type whose values name classes, so that `class_` takes them and `id_` and `attr` don't. -/
+class ClassName (α : Type) where
+  className : α → String
+
+class IdName (α : Type) where
+  idName : α → String
+
+class AttrName (α : Type) where
+  attrName : α → String
+
+instance : ClassName String := ⟨id⟩
+instance : IdName String := ⟨id⟩
+instance : AttrName String := ⟨id⟩
+
 /-- A class selector, as `class_ "btn"` for `.btn`. -/
-def class_ (name : String) : Subclass := { simples := [.class_ name] }
+def class_ [ClassName α] (name : α) : Subclass := { simples := [.class_ (ClassName.className name)] }
 
 /-- An ID selector, as `id_ "main"` for `#main`. -/
-def id_ (name : String) : Subclass := { simples := [.id name] }
+def id_ [IdName α] (name : α) : Subclass := { simples := [.id (IdName.idName name)] }
 
-def attr (name : String) (m : AttrMatch := .present) (caseInsensitive : Bool := false) : Subclass :=
-  { simples := [.attr name m caseInsensitive] }
+def attr [AttrName α] (name : α) (m : AttrMatch := .present) (caseInsensitive : Bool := false) :
+    Subclass :=
+  { simples := [.attr (AttrName.attrName name) m caseInsensitive] }
 
 def pseudo (p : PseudoClass) : Subclass := { simples := [.pseudo p] }
 
@@ -220,6 +235,57 @@ def nextSibling (s : Complex) : Relative := .mk .nextSibling s
 def subsequentSibling (s : Complex) : Relative := .mk .subsequentSibling s
 
 end Relative
+
+/-! ## Names -/
+
+mutual
+
+def PseudoClass.mentions : PseudoClass → List Simple
+  | .not sels | .is sels | .where sels => Complex.mentionsList sels
+  | .has rel => Relative.mentionsList rel
+  | _ => []
+
+def Simple.mentions : Simple → List Simple
+  | .pseudo p => p.mentions
+  | s => [s]
+
+def Simple.mentionsList : List Simple → List Simple
+  | [] => []
+  | s :: ss => s.mentions ++ Simple.mentionsList ss
+
+def Compound.mentions : Compound → List Simple
+  | .mk _ simples _ => Simple.mentionsList simples
+
+/-- Every class, ID, and attribute selector in `c`, including those in the arguments of `:not()`,
+`:is()`, `:where()`, and `:has()`. -/
+def Complex.mentions : Complex → List Simple
+  | .single c => c.mentions
+  | .combine l _ r => l.mentions ++ r.mentions
+
+def Complex.mentionsList : List Complex → List Simple
+  | [] => []
+  | c :: cs => c.mentions ++ Complex.mentionsList cs
+
+def Relative.mentions : Relative → List Simple
+  | .mk _ s => s.mentions
+
+def Relative.mentionsList : List Relative → List Simple
+  | [] => []
+  | r :: rs => r.mentions ++ Relative.mentionsList rs
+
+end
+
+def Simple.className? : Simple → Option String
+  | .class_ n => some n
+  | _ => none
+
+def Simple.id? : Simple → Option String
+  | .id n => some n
+  | _ => none
+
+def Simple.attrName? : Simple → Option String
+  | .attr n _ _ => some n
+  | _ => none
 
 /-! ## Safety -/
 

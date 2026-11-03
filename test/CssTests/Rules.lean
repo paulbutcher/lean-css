@@ -47,7 +47,7 @@ body, .page {
 
 -- Rules and keyframes of no selectors match nothing, so are left out.
 #guard (rule [] [color .red]).render = ""
-#guard (keyframes "k" [frame [] [opacity 1]]).render = "@keyframes k{}"
+#guard (keyframes "k" [frame [] [opacity 1]]).rule.render = "@keyframes k{}"
 
 -- A media rule of no queries applies to all media.
 #guard (media [] [rule [tag "p"] []]).render = "@media all{p{}}"
@@ -65,9 +65,14 @@ body, .page {
 #guard (supports (.and (.selector (tag "a" ++ pseudo (.has []))) (.decl (gap 0))) []).render
   = "@supports selector(a:is()) and (gap:0px){}"
 
-#guard (layer "base" [rule [tag "p"] [color .red]]).render = "@layer base{p{color:red}}"
+#guard (layer "base" [rule [tag "p"] [color .red]]).rule.render = "@layer base{p{color:red}}"
 #guard (Rule.layer none []).render = "@layer{}"
-#guard (Rule.layerOrder ["reset", "base"]).render = "@layer reset,base;"
+#guard (Rule.layerOrder [.named "reset", .named "base"]).render = "@layer reset,base;"
+-- A layer's handle names it in the order, and is no keyframes handle.
+def base := layer "base" []
+#guard (Rule.layerOrder [.named "reset", base]).render = "@layer reset,base;"
+#guard_msgs (drop info) in
+#check_failure animation [{ name := base, duration := ms 1 }]
 #guard (Rule.layerOrder []).render = ""
 
 #guard (fontFace [fontFamily "X", src [{ url := "x.woff2", format := some "woff2" }, { url := "x.ttf" }]]).render
@@ -75,6 +80,18 @@ body, .page {
 
 -- The well-formedness theorem's hypothesis is decidable for a concrete stylesheet.
 example : WellFormed (sheet.render true) := sheet.render_wellFormed true (by decide)
+
+def named : Stylesheet := [
+  rule [class_ "a" ++ id_ "top", tag "p" ++ pseudo (.not [class_ "b" ++ attr "href"])] [],
+  media [] [supports (.selector (class_ "untested")) [rule [pseudo (.is [class_ "c"])] []]],
+  layer "l" [rule [tag "li" ++ pseudo (.has [.child (class_ "a" ++ attr "data-x")])] []],
+  rule [pseudo (.where [id_ "w"])] [],
+]
+
+-- Each name once, from any depth, but not from what `@supports` only tests.
+example : named.classNames = ["a", "b", "c"] := by decide
+example : named.ids = ["top", "w"] := by decide
+example : named.attrNames = ["href", "data-x"] := by decide
 
 -- `unsafeRaw` is the one way to produce something else.
 #guard (Stylesheet.mk [] [.unsafeRaw "}</style>"]).hasVerbatim

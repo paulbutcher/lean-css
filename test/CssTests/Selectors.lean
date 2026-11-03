@@ -44,6 +44,15 @@ def sel (c : Complex) : String := c.render
 -- `:has()` of nothing matches nothing, which `:has()` itself can't say.
 #guard sel (tag "li" ++ pseudo (.has [])) = "li:is()"
 
+-- A name of one kind is accepted only where that kind is.
+inductive Klass | card
+instance : ClassName Klass := ⟨fun | .card => "card"⟩
+#guard sel (class_ Klass.card) = ".card"
+#guard_msgs (drop info) in
+#check_failure id_ Klass.card
+#guard_msgs (drop info) in
+#check_failure attr Klass.card
+
 -- Names are escaped, so none can turn into other syntax.
 #guard sel (class_ "1st" ++ id_ "a b") = ".\\31 st#a\\20 b"
 #guard sel (attr "x" (.equals "\"]{")) = "[x=\"\\22 ]\\7b \"]"

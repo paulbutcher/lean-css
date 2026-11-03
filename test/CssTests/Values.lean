@@ -52,7 +52,7 @@ def r (d : Declaration) : String := d.render
   = "box-shadow:inset 0px 0px 0px 2px blue"
 #guard r (transition [{ duration := ms 150 }, { property := "color", duration := sec 1, delay := ms 50 }])
   = "transition:all 150ms, color 1s ease 50ms"
-#guard r (animation [{ name := "fade", duration := ms 300, fillMode := .forwards }])
+#guard r (animation [{ name := keyframes "fade" [], duration := ms 300, fillMode := .forwards }])
   = "animation:300ms forwards fade"
 
 -- An empty list is `none`, where the property has it.
@@ -71,8 +71,13 @@ def r (d : Declaration) : String := d.render
 
 -- CSS-wide keywords, custom properties, and importance.
 #guard r color.revertLayer = "color:revert-layer"
-#guard r (custom "gap" (rem 2)) = "--gap:2rem"
-#guard r (gap.var "gap" (some (rem 1))) = "gap:var(--gap, 1rem)"
+def gapProp : CustomProp LengthPercentage := .named "gap"
+#guard r (gapProp (rem 2)) = "--gap:2rem"
+#guard r (gap.var gapProp (some (rem 1))) = "gap:var(--gap, 1rem)"
+#guard r (gap.var gapProp) = "gap:var(--gap)"
+-- A custom property is read only as the type it holds.
+#guard_msgs (drop info) in
+#check_failure color.var gapProp
 #guard (display .grid).important.render true = "display: grid !important"
 
 -- Untrusted strings stay inside the value.

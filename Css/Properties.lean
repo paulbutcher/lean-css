@@ -51,16 +51,25 @@ def unset (p : Property α) : Declaration := p.global .unset
 def revert (p : Property α) : Declaration := p.global .revert
 def revertLayer (p : Property α) : Declaration := p.global .revertLayer
 
-/-- The value of custom property `--name`, as `var(--name)`, falling back to `fallback` where
-that is unset. -/
-def var [ToValue α] (p : Property α) (name : String) (fallback : Option α := none) : Declaration :=
-  { property := p.name, value := [Css.var name ((fallback.map toValue).getD [])] }
-
 end Property
 
-/-- `--name: value` -/
-def custom [ToValue α] (name : String) (value : α) : Declaration :=
-  { property := "--" ++ name, value := toValue value }
+/-- Custom property `--name`, holding a value of type `α`. Applying it to a value declares it, so
+`brand (.hex 0x336699)` is `--brand:#336699`. -/
+structure CustomProp (α : Type) where
+  named ::
+  name : String
+
+instance [ToValue α] : CoeFun (CustomProp α) (fun _ => α → Declaration) :=
+  ⟨fun p v => { property := "--" ++ p.name, value := toValue v }⟩
+
+/-- `var(--name)`, or `var(--name, fallback)`. -/
+def CustomProp.var [ToValue α] (p : CustomProp α) (fallback : Option α := none) : Value :=
+  [.function "var" (.ident ("--" ++ p.name) :: (fallback.map (.comma :: toValue ·)).getD [])]
+
+/-- The value of `c`, falling back to `fallback` where that is unset. -/
+def Property.var [ToValue α] (p : Property α) (c : CustomProp α) (fallback : Option α := none) :
+    Declaration :=
+  { property := p.name, value := c.var fallback }
 
 /-- A declaration of a property with no typed counterpart here. Its name and value are escaped
 like any other, so this is as safe as a typed declaration, but not checked. -/

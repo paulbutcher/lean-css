@@ -21,19 +21,24 @@ import Css
 
 open Css
 
+def brand : CustomProp Color := .named "brand"
+
+def spin := keyframes "spin" [frame [.to] [transform [.rotate (turn 1)]]]
+
 def site : Stylesheet := [
-  rule [tag "body"] [margin 0, fontFamily ⟨"Inter", [.sansSerif]⟩, lineHeight 1.5],
+  rule [tag "body"] [margin 0, fontFamily ⟨"Inter", [.sansSerif]⟩, lineHeight 1.5, brand (.hex 0x336699)],
   rule [class_ "card", tag "article" ++ class_ "card"] [
     padding (rem 1),
     borderRadius (px 8),
     border { width := px 1, style := .solid, color := .hex 0xdddddd },
   ],
-  rule [tag "a" ++ pseudo .hover] [color .rebeccapurple, textDecoration .underline],
+  rule [tag "a" ++ pseudo .hover] [color.var brand, textDecoration .underline],
+  rule [class_ "spinner"] [animation [{ name := spin, duration := sec 1, iterations := .infinite }]],
   rule [child (class_ "nav") (tag "li" ++ pseudo (.nthChild 2 1))] [backgroundColor .whitesmoke],
   media [.minWidth (px 768)] [
     rule [class_ "grid"] [display .grid, gridTemplateColumns [.repeat 3 [fr 1]], gap (rem 1)],
   ],
-  keyframes "spin" [frame [.to] [transform [.rotate (turn 1)]]],
+  spin,
 ]
 
 #eval IO.println (site.render (pretty := true))
@@ -42,7 +47,7 @@ def site : Stylesheet := [
 `site.render` is the stylesheet as a compact `String`; `(pretty := true)` indents it instead.
 
 - A property (`color`, `margin`, `display`, ...) is a `Property α`, applied to a value of type `α` to give a `Declaration`. Keywords are constructors, so `display .flex` and `color .red`, and literals and coercions reach the property's type: `margin 0`, `margin (.two (px 4) .auto)`, `lineHeight 1.5`, `fontWeight 600`.
-- Every property takes the CSS-wide keywords, `color.inherit`, and a custom property, `color.var "brand" (some .black)`. `custom "brand" (Color.hex 0x336699)` declares one, and `d.important` marks a declaration `!important`.
+- Every property takes the CSS-wide keywords, `color.inherit`. A `CustomProp α`, such as `brand : CustomProp Color := .named "brand"`, is declared by applying it, `brand (.hex 0x336699)`, and read by any property of type `α`, `color.var brand (some .black)`; reading it as another type is a type error. `d.important` marks a declaration `!important`.
 - Lengths and the like are built with `px`, `em`, `rem`, `vw`, `pct`, `deg`, `ms`, and so on, from exact decimals, so `px 1.5` renders as `1.5px`. `+`, `-`, `*`, and `/` on them build `calc()`, with only the parentheses it needs; where a property takes something wider than `LengthPercentage`, such as `OrAuto LengthPercentage`, wrap the arithmetic in `calc_`. `clamp`, `.min`, and `.max` are there too.
 - Shorthands such as `border`, `boxShadow`, `transition`, and `animation` take records, leaving out parts at their initial values. A list property given `[]` renders `none`.
 - `declare name value` sets a property with no typed counterpart here, with a `Value` (a list of `Component`s) or any typed value; it is escaped like any other, so is as safe, but isn't checked.
@@ -51,6 +56,8 @@ def site : Stylesheet := [
 ## Selectors
 
 - `tag "a"` is a type selector, `universal` is `*`, and `class_`, `id_`, `attr`, `pseudo`, and `pseudoElement` are the rest of a compound selector, joined with `++`: `tag "a" ++ class_ "btn" ++ pseudo .hover`. Only a type selector can start one, and only once. Pseudo-elements render last, after the pseudo-classes, wherever they were appended.
+- `class_`, `id_`, and `attr` take a `String`, or any type with a `ClassName`, `IdName`, or `AttrName` instance respectively, so a name of one kind can't be used as another.
+- `Stylesheet.classNames`, `ids`, and `attrNames` list the names the selectors use, at any depth; `decide` evaluates them for a concrete stylesheet.
 - `descendant`, `child`, `nextSibling`, and `subsequentSibling` combine selectors. `pseudo (.not [...])`, `.is`, `.where`, and `.has` take selector lists, `.has` relative ones such as `.child (tag "img")`.
 - A rule takes a list of selectors, and where a list of selectors or keyframe selectors is empty, the output says what the empty list means: a rule or keyframe of no selectors is left out, `:not()` of none matches everything, so is left out too, and `:has()` of none matches nothing, so is written `:is()`.
 
@@ -58,6 +65,7 @@ def site : Stylesheet := [
 
 - `media`, with typed queries such as `.minWidth (px 600)`, `.prefersColorScheme .dark`, and `.typeAnd .screen (...)`, combined with `.and`, `.or`, and `.not`, and parenthesized where the grammar requires. `.feature name value` covers the rest.
 - `supports`, testing declarations and selectors; `layer`, `Rule.layerOrder`, `keyframes`, and `fontFace`, with the `src` and `fontDisplay` descriptors.
+- `layer` and `keyframes` return a `Defines`, which serves as the rule and as a handle that `Rule.layerOrder` and `animation` take. `Layer.named` and `Keyframes.named` make a handle for one defined elsewhere.
 - A `Stylesheet` takes `imports`, rendered first, where CSS requires them.
 - Not modelled: nesting, `@container`, `@page`, `@property`, `@scope`, and namespaces.
 

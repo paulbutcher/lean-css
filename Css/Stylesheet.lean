@@ -31,6 +31,12 @@ is left out. -/
 def frame (selectors : List KeyframeSelector) (decls : List Declaration) : Keyframe :=
   ⟨selectors, decls⟩
 
+/-- A cascade layer's name, as `layer` returns it, or `.named` for one defined elsewhere. -/
+structure Layer where
+  named ::
+  name : String
+  deriving DecidableEq, Repr
+
 inductive Rule where
   /-- A style rule. Of no selectors, it matches nothing, so is left out. -/
   | style (selectors : List Complex) (decls : List Declaration)
@@ -38,10 +44,10 @@ inductive Rule where
   | media (queries : List MediaQuery) (rules : List Rule)
   | supports (c : SupportsCondition) (rules : List Rule)
   /-- A layer block, named or anonymous. -/
-  | layer (name : Option String) (rules : List Rule)
+  | layer (name : Option Layer) (rules : List Rule)
   /-- `@layer a, b;`, fixing the order of layers. Of no names, it is left out. -/
-  | layerOrder (names : List String)
-  | keyframes (name : String) (frames : List Keyframe)
+  | layerOrder (names : List Layer)
+  | keyframes (name : Keyframes) (frames : List Keyframe)
   | fontFace (decls : List Declaration)
   /-- Inserted verbatim. The content is trusted as-is, and can unbalance the stylesheet or close
   an enclosing `<style>` element. -/
@@ -53,9 +59,19 @@ def media (queries : List MediaQuery) (rules : List Rule) : Rule := .media queri
 
 def supports (c : SupportsCondition) (rules : List Rule) : Rule := .supports c rules
 
-def layer (name : String) (rules : List Rule) : Rule := .layer (some name) rules
+/-- A rule defining the thing `handle` names, which coerces both to the rule and to the handle. -/
+structure Defines (α : Type) where
+  handle : α
+  rule : Rule
 
-def keyframes (name : String) (frames : List Keyframe) : Rule := .keyframes name frames
+instance : CoeOut (Defines α) Rule := ⟨Defines.rule⟩
+instance : CoeOut (Defines α) α := ⟨Defines.handle⟩
+
+def layer (name : String) (rules : List Rule) : Defines Layer :=
+  ⟨.named name, .layer (some (.named name)) rules⟩
+
+def keyframes (name : String) (frames : List Keyframe) : Defines Keyframes :=
+  ⟨.named name, .keyframes (.named name) frames⟩
 
 def fontFace (decls : List Declaration) : Rule := .fontFace decls
 
@@ -99,14 +115,14 @@ def Rule.renderAt (pretty : Bool) (depth : Nat) : Rule → String
     block pretty depth ("@supports " ++ c.render) (Rule.renderListAt pretty (depth + 1) rs)
   | .layer none rs => block pretty depth "@layer" (Rule.renderListAt pretty (depth + 1) rs)
   | .layer (some n) rs =>
-    block pretty depth ("@layer " ++ escapeIdent n) (Rule.renderListAt pretty (depth + 1) rs)
+    block pretty depth ("@layer " ++ escapeIdent n.name) (Rule.renderListAt pretty (depth + 1) rs)
   | .layerOrder names =>
     if names.isEmpty then ""
     else if pretty then
-      indent depth ++ "@layer " ++ joinWith ", " (names.map escapeIdent) ++ ";\n"
-    else "@layer " ++ joinWith "," (names.map escapeIdent) ++ ";"
+      indent depth ++ "@layer " ++ joinWith ", " (names.map (escapeIdent ·.name)) ++ ";\n"
+    else "@layer " ++ joinWith "," (names.map (escapeIdent ·.name)) ++ ";"
   | .keyframes n fs =>
-    block pretty depth ("@keyframes " ++ escapeIdent n)
+    block pretty depth ("@keyframes " ++ escapeIdent n.name)
       (String.join (fs.map (Keyframe.render pretty (depth + 1))))
   | .fontFace ds => block pretty depth "@font-face" (declsBody pretty depth ds)
   | .unsafeRaw css => css
@@ -139,6 +155,21 @@ def Rule.hasVerbatimList : List Rule → Bool
 
 end
 
+mutual
+
+/-- The class, ID, and attribute selectors in the rule's selectors, at any depth. Those in an
+`@supports selector()` test are left out, as they style nothing. -/
+def Rule.mentions : Rule → List Simple
+  | .style sels _ => Complex.mentionsList sels
+  | .media _ rs | .supports _ rs | .layer _ rs => Rule.mentionsList rs
+  | _ => []
+
+def Rule.mentionsList : List Rule → List Simple
+  | [] => []
+  | r :: rs => r.mentions ++ Rule.mentionsList rs
+
+end
+
 /-- An `@import` of another stylesheet, where the media queries match. -/
 structure Import where
   url : String
@@ -165,6 +196,16 @@ def render (s : Stylesheet) (pretty : Bool := false) : String :=
 
 def hasVerbatim (s : Stylesheet) : Bool :=
   s.imports.any (·.media.any (·.hasVerbatim)) || Rule.hasVerbatimList s.rules
+
+/-- Each class the selectors name, once, in order of first mention. -/
+def classNames (s : Stylesheet) : List String :=
+  ((Rule.mentionsList s.rules).filterMap Simple.className?).eraseDups
+
+def ids (s : Stylesheet) : List String :=
+  ((Rule.mentionsList s.rules).filterMap Simple.id?).eraseDups
+
+def attrNames (s : Stylesheet) : List String :=
+  ((Rule.mentionsList s.rules).filterMap Simple.attrName?).eraseDups
 
 end Stylesheet
 
@@ -362,15 +403,15 @@ theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
     simp only [Rule.renderAt]
     refine block_wf ?_ (Rule.renderListAt_wf pretty (depth + 1) rs h)
     simp only [allChars_append]
-    exact ⟨by decide, ident_flat n⟩
+    exact ⟨by decide, ident_flat n.name⟩
   | .layerOrder names, _ => by
     simp only [Rule.renderAt]
     have hn : ∀ sep, AllChars isFlat sep →
-        AllChars isFlat (joinWith sep (names.map escapeIdent)) := fun sep hs =>
+        AllChars isFlat (joinWith sep (names.map (escapeIdent ·.name))) := fun sep hs =>
       joinWith_allChars hs _ fun s hs => by
         simp only [List.mem_map] at hs
         obtain ⟨n, _, rfl⟩ := hs
-        exact ident_flat n
+        exact ident_flat n.name
     refine WellFormed.of_flat ?_
     split
     · decide
@@ -384,7 +425,7 @@ theorem Rule.renderAt_wf (pretty : Bool) (depth : Nat) :
     simp only [Rule.renderAt]
     refine block_wf ?_ ?_
     · simp only [allChars_append]
-      exact ⟨by decide, ident_flat n⟩
+      exact ⟨by decide, ident_flat n.name⟩
     · have : ∀ l : List String, (∀ s ∈ l, WellFormed s) → WellFormed (String.join l) := by
         intro l hl
         induction l with
