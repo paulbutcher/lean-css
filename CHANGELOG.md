@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.0] - 2026-11-23
+
+* Breaking: requires Lean v4.36.0
+
 ## [0.2.0] - 2026-11-03
 
 * Breaking: `cls` is renamed `class_`, matching lean-html
