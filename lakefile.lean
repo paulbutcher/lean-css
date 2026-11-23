@@ -7,7 +7,7 @@ import Lake
 open Lake DSL
 
 package css where
-  version := v!"0.2.0"
+  version := v!"0.3.0"
   leanOptions := #[⟨`warningAsError, true⟩]
 
 @[default_target]
